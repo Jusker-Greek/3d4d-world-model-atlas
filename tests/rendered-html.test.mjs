@@ -47,3 +47,19 @@ test("removes the disposable starter preview and keeps research content in sourc
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await assert.rejects(access(new URL("../app/_sites-preview/SkeletonPreview.tsx", import.meta.url)));
 });
+
+test("ships the standalone LLM distillation teacher class", async () => {
+  const html = await readFile(
+    new URL("../public/llm-distillation-teacher-class.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(html, /<title>开源 LLM 蒸馏教师课/);
+  assert.match(html, /五类方法/);
+  assert.match(html, /DeepSeek-R1-0528-Qwen3-8B/);
+  assert.match(html, /OpenR1-Distill-7B/);
+  assert.match(html, /AMiD · ICLR 2026/);
+  assert.match(html, /Compress-Distill/);
+  assert.match(html, /function renderRecommendations\(\)/);
+  assert.match(html, /function renderModels\(\)/);
+});

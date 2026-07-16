@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="开源大模型蒸馏成小模型的中文教师课件：方法分类、开源模型、需求选型、训练路线与 2026 最新进展。"
+    />
+    <meta name="theme-color" content="#18243d" />
+    <title>开源 LLM 蒸馏教师课 · 从方法到选型</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172037;
+        --muted: #647086;
+        --paper: #f5f1e8;
+        --paper-2: #fffdf8;
+        --navy: #18243d;
+        --blue: #295fa8;
+        --cyan: #1e8e91;
+        --orange: #d9653b;
+        --yellow: #f3c54f;
+        --red: #b8423f;
+        --green: #29745a;
+        --line: #d8d2c6;
+        --shadow: 0 18px 50px rgba(33, 39, 56, 0.1);
+        --radius: 20px;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          linear-gradient(rgba(30, 42, 64, 0.025) 1px, transparent 1px),
+          var(--paper);
+        background-size: 100% 28px;
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        line-height: 1.65;
+      }
+      a { color: var(--blue); text-underline-offset: 3px; }
+      button, input, select { font: inherit; }
+      button, select { cursor: pointer; }
+      .skip-link {
+        position: fixed; top: 8px; left: 8px; z-index: 100;
+        padding: 8px 12px; transform: translateY(-150%);
+        background: white; border: 2px solid var(--blue); border-radius: 8px;
+      }
+      .skip-link:focus { transform: none; }
+
+      .topbar {
+        position: sticky; top: 0; z-index: 40; height: 58px;
+        display: flex; align-items: center; gap: 14px; padding: 0 24px;
+        color: white; background: rgba(24, 36, 61, 0.96);
+        border-bottom: 3px solid var(--yellow); backdrop-filter: blur(14px);
+      }
+      .brand { font-weight: 800; letter-spacing: 0.04em; white-space: nowrap; }
+      .brand span { color: var(--yellow); }
+      .progress { height: 5px; flex: 1; border-radius: 99px; background: rgba(255,255,255,.15); overflow: hidden; }
+      .progress > i { display: block; width: 0; height: 100%; background: var(--yellow); transition: width .15s linear; }
+      .top-actions { display: flex; gap: 8px; }
+      .top-actions button {
+        border: 1px solid rgba(255,255,255,.3); color: white; background: transparent;
+        padding: 6px 10px; border-radius: 999px;
+      }
+      .top-actions button:hover { background: rgba(255,255,255,.1); }
+
+      .layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); max-width: 1600px; margin: auto; }
+      aside {
+        position: sticky; top: 58px; align-self: start; height: calc(100vh - 58px);
+        padding: 28px 22px; border-right: 1px solid var(--line); overflow-y: auto;
+      }
+      aside .eyebrow { margin-bottom: 14px; color: var(--orange); font-size: 12px; font-weight: 900; letter-spacing: .14em; }
+      aside nav { display: grid; gap: 4px; }
+      aside nav a {
+        display: grid; grid-template-columns: 28px 1fr; align-items: center;
+        padding: 8px 10px; color: var(--muted); text-decoration: none; border-radius: 10px;
+      }
+      aside nav a:hover, aside nav a.active { color: var(--ink); background: #e9e3d7; }
+      aside nav b { color: var(--blue); font-size: 11px; }
+      .aside-note { margin-top: 24px; padding: 14px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 14px; font-size: 12px; color: var(--muted); }
+
+      main { min-width: 0; padding-bottom: 100px; }
+      section { scroll-margin-top: 78px; padding: 72px clamp(24px, 5vw, 82px); border-bottom: 1px solid var(--line); }
+      .section-inner { max-width: 1180px; margin: auto; }
+      .kicker { color: var(--orange); font-weight: 900; font-size: 12px; letter-spacing: .15em; text-transform: uppercase; }
+      h1, h2, h3 { line-height: 1.15; letter-spacing: -.025em; }
+      h1 { margin: 14px 0 20px; font-size: clamp(42px, 6.5vw, 88px); max-width: 1000px; }
+      h2 { margin: 10px 0 18px; font-size: clamp(30px, 4vw, 52px); }
+      h3 { font-size: 21px; }
+      .lead { max-width: 850px; color: #465169; font-size: clamp(17px, 2vw, 22px); }
+      .highlight { position: relative; z-index: 0; white-space: nowrap; }
+      .highlight::after { content: ""; position: absolute; z-index: -1; left: -3px; right: -3px; bottom: .08em; height: .32em; background: rgba(243,197,79,.72); transform: rotate(-1deg); }
+
+      .hero {
+        min-height: calc(100vh - 58px); display: flex; align-items: center;
+        color: #f7f3e9; background:
+          radial-gradient(circle at 78% 22%, rgba(53, 147, 153, .24), transparent 30%),
+          radial-gradient(circle at 15% 85%, rgba(217, 101, 59, .18), transparent 32%),
+          var(--navy);
+        border-bottom: none;
+      }
+      .hero .lead { color: #ccd4df; }
+      .hero-grid { display: grid; grid-template-columns: 1.35fr .65fr; gap: 50px; align-items: end; }
+      .hero .kicker { color: var(--yellow); }
+      .hero-card { padding: 26px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.16); border-radius: var(--radius); box-shadow: var(--shadow); }
+      .hero-card .stamp { color: var(--yellow); font-size: 12px; font-weight: 900; letter-spacing: .12em; }
+      .hero-card ol { margin: 18px 0 0; padding-left: 22px; color: #e3e7ee; }
+      .hero-card li + li { margin-top: 10px; }
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        padding: 12px 18px; border: 0; border-radius: 999px; text-decoration: none; font-weight: 800;
+        background: var(--yellow); color: #18243d;
+      }
+      .btn.secondary { color: white; background: transparent; border: 1px solid rgba(255,255,255,.35); }
+      .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 44px; }
+      .metric { padding: 16px; border-top: 1px solid rgba(255,255,255,.25); }
+      .metric strong { display: block; color: white; font-size: 28px; }
+      .metric span { color: #aeb9ca; font-size: 12px; }
+
+      .summary-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 30px; }
+      .summary-card { position: relative; padding: 24px; background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+      .summary-card::before { content: attr(data-no); display: grid; place-items: center; width: 36px; height: 36px; margin-bottom: 14px; color: white; background: var(--blue); border-radius: 50%; font-weight: 900; }
+      .summary-card:nth-child(2)::before { background: var(--cyan); }
+      .summary-card:nth-child(3)::before { background: var(--orange); }
+      .summary-card p { color: var(--muted); }
+      .callout { margin-top: 28px; padding: 18px 22px; border-left: 5px solid var(--orange); background: #fff8e7; border-radius: 0 14px 14px 0; }
+      .callout strong { color: var(--red); }
+
+      .axis-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 28px; }
+      .axis { padding: 24px; border-radius: var(--radius); color: white; background: var(--navy); }
+      .axis:nth-child(2) { background: #205d68; }
+      .axis:nth-child(3) { background: #8e4934; }
+      .axis .axis-label { opacity: .7; font-size: 11px; font-weight: 900; letter-spacing: .14em; }
+      .axis ul { padding-left: 18px; }
+      .axis li + li { margin-top: 7px; }
+      .formula { margin-top: 24px; padding: 20px; overflow-x: auto; color: #dce5ef; background: #111b30; border-radius: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+
+      .taxonomy-tabs { display: flex; gap: 8px; margin: 30px 0 20px; overflow-x: auto; padding-bottom: 4px; }
+      .taxonomy-tabs button { flex: 0 0 auto; padding: 10px 15px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-2); color: var(--muted); }
+      .taxonomy-tabs button.active { color: white; border-color: var(--blue); background: var(--blue); }
+      .taxonomy-panel { display: none; grid-template-columns: .75fr 1.25fr; gap: 28px; padding: 28px; background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); }
+      .taxonomy-panel.active { display: grid; }
+      .taxonomy-panel .big { color: var(--blue); font: 900 clamp(46px, 8vw, 100px)/.9 Georgia, serif; }
+      .method-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .chip { display: inline-flex; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: white; font-size: 12px; }
+
+      .chooser { margin-top: 28px; padding: clamp(22px, 4vw, 40px); color: white; background: var(--navy); border-radius: 28px; box-shadow: var(--shadow); }
+      .chooser-grid { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 14px; align-items: end; }
+      .field label { display: block; margin-bottom: 7px; color: #bfc9d8; font-size: 12px; font-weight: 800; }
+      .field select { width: 100%; padding: 12px 38px 12px 12px; color: var(--ink); background: white; border: 0; border-radius: 10px; }
+      .recommend-btn { padding: 12px 18px; border: 0; border-radius: 10px; background: var(--yellow); font-weight: 900; }
+      .recommendations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+      .rec { position: relative; min-height: 190px; padding: 20px; color: var(--ink); background: #fffdf8; border-radius: 16px; }
+      .rec .rank { position: absolute; right: 14px; top: 12px; color: #d9dee5; font-size: 40px; font-weight: 900; }
+      .rec small { color: var(--orange); font-weight: 900; }
+      .rec p { color: var(--muted); font-size: 14px; }
+      .rec a { font-size: 13px; font-weight: 800; }
+
+      .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(130px, .45fr)); gap: 10px; margin: 28px 0 12px; }
+      .toolbar input, .toolbar select { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-2); }
+      .result-count { color: var(--muted); font-size: 13px; }
+      .model-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 14px; }
+      .model-card { display: flex; flex-direction: column; min-height: 340px; padding: 22px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 18px; transition: .18s ease; }
+      .model-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: #b8b0a1; }
+      .model-card .model-top { display: flex; justify-content: space-between; gap: 12px; }
+      .model-card h3 { margin: 8px 0; }
+      .model-card p { color: var(--muted); font-size: 14px; }
+      .model-card .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+      .badge { padding: 4px 8px; border-radius: 999px; background: #edf0f5; color: #465169; font-size: 11px; font-weight: 800; }
+      .badge.open { color: #196145; background: #dff2e8; }
+      .badge.partial { color: #8a5d13; background: #f7eacb; }
+      .badge.research { color: #7c3f2e; background: #f5ded5; }
+      .model-card .fit { margin: auto 0 14px; padding-top: 12px; color: var(--ink); font-size: 13px; border-top: 1px dashed var(--line); }
+      .model-card .fit b { color: var(--green); }
+      .model-card .links { display: flex; gap: 12px; flex-wrap: wrap; }
+      .model-card .links a { font-size: 12px; font-weight: 900; }
+      .empty { grid-column: 1/-1; padding: 40px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 18px; }
+
+      .matrix-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2); }
+      table { width: 100%; border-collapse: collapse; min-width: 920px; }
+      th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { position: sticky; top: 58px; z-index: 2; color: white; background: var(--navy); font-size: 12px; letter-spacing: .04em; }
+      td { font-size: 13px; }
+      td:first-child { font-weight: 900; }
+      tr:last-child td { border-bottom: 0; }
+      .yes { color: var(--green); font-weight: 900; }
+      .no { color: #9b3c39; font-weight: 900; }
+      .maybe { color: #94681d; font-weight: 900; }
+
+      .recipe-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 28px; }
+      .recipe { padding: 24px; background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); }
+      .recipe .route { color: var(--orange); font-size: 12px; font-weight: 900; letter-spacing: .1em; }
+      .recipe ol { padding-left: 22px; }
+      .recipe li + li { margin-top: 8px; }
+      .recipe .use { padding: 11px 13px; color: #285948; background: #e2f1e9; border-radius: 10px; font-size: 13px; }
+      .recipe .avoid { margin-top: 8px; padding: 11px 13px; color: #7f3d2b; background: #f6e5dd; border-radius: 10px; font-size: 13px; }
+
+      .timeline { position: relative; display: grid; gap: 18px; margin-top: 30px; padding-left: 30px; }
+      .timeline::before { content: ""; position: absolute; left: 8px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+      .event { position: relative; display: grid; grid-template-columns: 100px 1fr; gap: 18px; padding: 18px 20px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 15px; }
+      .event::before { content: ""; position: absolute; left: -29px; top: 26px; width: 12px; height: 12px; background: var(--orange); border: 4px solid var(--paper); border-radius: 50%; }
+      .event time { color: var(--orange); font-weight: 900; }
+      .event p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+      details { background: var(--paper-2); border: 1px solid var(--line); border-radius: 13px; }
+      details + details { margin-top: 9px; }
+      summary { padding: 15px 18px; cursor: pointer; font-weight: 800; }
+      details > div { padding: 0 18px 18px; color: var(--muted); }
+      .rubric { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0; }
+      .rubric > div { padding: 18px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 15px; }
+      .rubric b { display: block; color: var(--blue); font-size: 22px; }
+      .rubric span { color: var(--muted); font-size: 12px; }
+
+      .source-list { columns: 2; column-gap: 36px; padding: 0; list-style: none; counter-reset: source; }
+      .source-list li { break-inside: avoid; margin: 0 0 13px; padding-left: 34px; position: relative; color: var(--muted); font-size: 13px; }
+      .source-list li::before { counter-increment: source; content: counter(source); position: absolute; left: 0; top: 1px; display: grid; place-items: center; width: 23px; height: 23px; color: white; background: var(--blue); border-radius: 50%; font-size: 10px; font-weight: 900; }
+      .source-list a { font-weight: 800; }
+      footer { padding: 40px clamp(24px, 5vw, 82px); color: #aeb7c5; background: #111a2c; }
+      footer .footer-inner { max-width: 1180px; margin: auto; display: flex; justify-content: space-between; gap: 20px; }
+
+      @media (max-width: 1100px) {
+        .layout { grid-template-columns: 1fr; }
+        aside { display: none; }
+        .hero-grid { grid-template-columns: 1fr; }
+        .hero-card { max-width: 620px; }
+        .model-grid { grid-template-columns: repeat(2, 1fr); }
+        .chooser-grid { grid-template-columns: repeat(3, 1fr); }
+        .recommend-btn { grid-column: 1/-1; }
+      }
+      @media (max-width: 760px) {
+        .topbar { padding: 0 14px; }
+        .brand { font-size: 13px; }
+        .top-actions button:first-child { display: none; }
+        section { padding: 54px 18px; }
+        .hero { min-height: auto; padding-top: 70px; }
+        .metrics, .summary-strip, .axis-grid, .recommendations, .model-grid, .recipe-grid, .rubric { grid-template-columns: 1fr; }
+        .taxonomy-panel { grid-template-columns: 1fr; }
+        .chooser-grid, .toolbar { grid-template-columns: 1fr; }
+        .event { grid-template-columns: 1fr; gap: 4px; }
+        .source-list { columns: 1; }
+        footer .footer-inner { display: block; }
+      }
+      @media print {
+        .topbar, aside, .hero-actions, .toolbar, .taxonomy-tabs, .chooser, .top-actions { display: none !important; }
+        .layout { display: block; }
+        .hero { min-height: auto; color: var(--ink); background: white; }
+        .hero .lead { color: var(--muted); }
+        section { padding: 28px 0; break-inside: avoid; }
+        .taxonomy-panel { display: grid !important; margin-bottom: 12px; }
+        .model-card { break-inside: avoid; }
+        body { background: white; font-size: 11pt; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { transition: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到正文</a>
+    <header class="topbar">
+      <div class="brand">LLM DISTILLATION <span>CLASS</span></div>
+      <div class="progress" aria-label="阅读进度"><i id="progressBar"></i></div>
+      <div class="top-actions">
+        <button type="button" id="copySummary">复制选型结论</button>
+        <button type="button" onclick="window.print()">打印课件</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside aria-label="课程目录">
+        <div class="eyebrow">COURSE MAP</div>
+        <nav id="toc">
+          <a href="#overview"><b>01</b><span>先讲清楚</span></a>
+          <a href="#framework"><b>02</b><span>三轴分类</span></a>
+          <a href="#taxonomy"><b>03</b><span>五类方法</span></a>
+          <a href="#chooser"><b>04</b><span>需求选模型</span></a>
+          <a href="#models"><b>05</b><span>模型图鉴</span></a>
+          <a href="#matrix"><b>06</b><span>方法矩阵</span></a>
+          <a href="#recipes"><b>07</b><span>训练路线</span></a>
+          <a href="#frontier"><b>08</b><span>2026 前沿</span></a>
+          <a href="#pitfalls"><b>09</b><span>风险与评估</span></a>
+          <a href="#sources"><b>10</b><span>一手资料</span></a>
+        </nav>
+        <div class="aside-note">
+          资料截点：<b>2026-07-16</b><br />
+          “开源”拆为权重、代码、数据三层；未把量化、剪枝或普通 SFT 自动算作蒸馏。
+        </div>
+      </aside>
+
+      <main id="main">
+        <section class="hero" id="hero">
+          <div class="section-inner">
+            <div class="hero-grid">
+              <div>
+                <div class="kicker">TEACHER CLASS · 2026 EDITION</div>
+                <h1>把大模型的能力，<br />教给<span class="highlight">真正能部署</span>的小模型</h1>
+                <p class="lead">
+                  一份从论文机制走到工程选型的中文互动课件。核心问题不是“谁分数最高”，而是：
+                  <b>你要转移什么能力、能看到教师的什么信号、最后部署在哪里？</b>
+                </p>
+                <div class="hero-actions">
+                  <a class="btn" href="#chooser">直接选模型 ↓</a>
+                  <a class="btn secondary" href="#taxonomy">先学分类</a>
+                </div>
+              </div>
+              <div class="hero-card">
+                <div class="stamp">本课结束后，你应该能回答</div>
+                <ol>
+                  <li>普通 SFT、logit KD、CoT 蒸馏到底差在哪？</li>
+                  <li>“conditional distillation”可以具体指什么？</li>
+                  <li>哪些模型只是开放权重，哪些能完整复现？</li>
+                  <li>1B、4B、8B、32B 应该分别选谁？</li>
+                </ol>
+              </div>
+            </div>
+            <div class="metrics" aria-label="调研规模">
+              <div class="metric"><strong>5</strong><span>方法家族</span></div>
+              <div class="metric"><strong>12</strong><span>可下载模型 / 家族</span></div>
+              <div class="metric"><strong>17</strong><span>代表方法与最新工作</span></div>
+              <div class="metric"><strong>2026.07</strong><span>资料截点</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="overview" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 01 · ONE-MINUTE MAP</div>
+            <h2>先把三个最容易混淆的词拆开</h2>
+            <p class="lead">蒸馏不是单一算法，而是一组“用教师信号训练学生”的方法。小模型也不一定来自蒸馏。</p>
+            <div class="summary-strip">
+              <article class="summary-card" data-no="1">
+                <h3>开放权重 ≠ 全流程开源</h3>
+                <p>DeepSeek-R1-Distill 可下载且许可宽松，但原始 80 万条蒸馏数据与完整训练流水线没有全部公开；Open-R1 才补上了较完整的模型、数据、训练与评估链。</p>
+              </article>
+              <article class="summary-card" data-no="2">
+                <h3>蒸馏 ≠ 只学最终答案</h3>
+                <p>学生可以学教师的 token 概率、生成回答、推理轨迹、偏好排序、中间表示、多个教师的互补知识，甚至剪枝后如何恢复性能。</p>
+              </article>
+              <article class="summary-card" data-no="3">
+                <h3>小模型 ≠ 蒸馏模型</h3>
+                <p>TinyLlama、SmolLM、MobileLLM-R1 等可以主要靠架构、数据和训练配方得到。判断依据应是技术报告是否明确使用教师信号，而不是名字里有没有 “mini”。</p>
+              </article>
+            </div>
+            <div class="callout"><strong>本 survey 的口径：</strong>把“开源”拆成权重 / 代码 / 蒸馏数据三层；把“conditional”视为条件化或自适应蒸馏的工程总称，而不是一个已经统一定义的学术门类。</div>
+          </div>
+        </section>
+
+        <section id="framework" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 02 · THREE AXES</div>
+            <h2>用三根轴，定位任何一篇蒸馏工作</h2>
+            <div class="axis-grid">
+              <article class="axis">
+                <div class="axis-label">AXIS A · TRANSFER</div>
+                <h3>传什么？</h3>
+                <ul><li>分布：logits / token 概率</li><li>行为：回答、工具轨迹、CoT</li><li>结构：hidden states、关系、表征</li><li>偏好：排序、critique、reward</li></ul>
+              </article>
+              <article class="axis">
+                <div class="axis-label">AXIS B · ACCESS</div>
+                <h3>能看到什么？</h3>
+                <ul><li>白盒：权重、logits、中间层</li><li>灰盒：top-k 概率或批量推理</li><li>黑盒：只能拿文本输出</li><li>多教师：不同架构 / tokenizer</li></ul>
+              </article>
+              <article class="axis">
+                <div class="axis-label">AXIS C · CONDITION</div>
+                <h3>目标何时变化？</h3>
+                <ul><li>固定：离线教师数据</li><li>on-policy：跟着学生生成分布变</li><li>课程式：随训练时间改变教师强度</li><li>样本式：按难度、验证结果或预算路由</li></ul>
+              </article>
+            </div>
+            <div class="formula" aria-label="蒸馏统一目标">
+              L = λ · L_ground_truth + α(t, x) · D(student || teacher / assistant) + β · L_preference_or_verifier
+            </div>
+            <p class="callout">这条式子最重要的不是符号，而是三个选择：<b>监督来源</b>、<b>分布距离</b>、以及系数是否随训练步或样本变化。</p>
+          </div>
+        </section>
+
+        <section id="taxonomy" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 03 · FIVE FAMILIES</div>
+            <h2>五类方法，比“普通 / 特殊 / conditional”更可操作</h2>
+            <div class="taxonomy-tabs" role="tablist" aria-label="蒸馏方法分类">
+              <button class="active" role="tab" aria-selected="true" data-tab="t1">① 分布匹配</button>
+              <button role="tab" aria-selected="false" data-tab="t2">② 回答 / 推理轨迹</button>
+              <button role="tab" aria-selected="false" data-tab="t3">③ 专项知识 / 偏好</button>
+              <button role="tab" aria-selected="false" data-tab="t4">④ 条件化 / 自适应</button>
+              <button role="tab" aria-selected="false" data-tab="t5">⑤ 结构 / 多教师</button>
+            </div>
+
+            <article class="taxonomy-panel active" id="t1" role="tabpanel">
+              <div><div class="big">P(y|x)</div><p>白盒教师最典型的“普通蒸馏”。</p></div>
+              <div><h3>Token / logit distribution matching</h3><p>让学生在每个 token 上接近教师分布。MiniLLM 用 reverse KL 抑制低概率区域被过度估计；DistiLLM 用 skewed KL 与自适应离线策略；CSD（ICLR 2026）直接对齐相对 logit 差，绕开 softmax 平滑。</p><div class="method-chips"><span class="chip">MiniLLM</span><span class="chip">DistiLLM</span><span class="chip">Gemma 3</span><span class="chip">Qwen3</span><span class="chip">CSD</span></div></div>
+            </article>
+            <article class="taxonomy-panel" id="t2" role="tabpanel">
+              <div><div class="big">TRACE</div><p>只需要教师能生成文本，最容易扩展。</p></div>
+              <div><h3>Response / rationale / trajectory distillation</h3><p>教师先生成回答或思维链，再用 SFT、偏好学习或 RL 训练学生。DeepSeek-R1-Distill、OpenR1、Phi-4-mini-reasoning 都属于这条主线。关键不在“生成更多”，而在可验证、去污染、去重复和难度配比。</p><div class="method-chips"><span class="chip">DeepSeek-R1-Distill</span><span class="chip">Open-R1</span><span class="chip">Phi-4-mini-reasoning</span><span class="chip">Distilling Step-by-Step</span></div></div>
+            </article>
+            <article class="taxonomy-panel" id="t3" role="tabpanel">
+              <div><div class="big">SKILL</div><p>只搬运有用的能力，不追求全能复刻。</p></div>
+              <div><h3>Domain / skill / preference distillation</h3><p>把数学、代码、医疗、检索、embedding、工具使用或对齐偏好做成专项学生。专项模型常能在窄任务超过教师，但边界外能力会明显掉。HuatuoGPT-o1 和 EmbeddingGemma 是两个不同例子：前者蒸馏医疗推理数据，后者蒸馏几何 embedding 关系。</p><div class="method-chips"><span class="chip">HuatuoGPT-o1</span><span class="chip">EmbeddingGemma</span><span class="chip">DistiLLM-2</span><span class="chip">FutureMind</span></div></div>
+            </article>
+            <article class="taxonomy-panel" id="t4" role="tabpanel">
+              <div><div class="big">α(t,x)</div><p>教师目标随学生、时间或样本而变。</p></div>
+              <div><h3>Conditional / adaptive / on-policy distillation</h3><p>GKD 用学生自己生成的序列暴露错误；TAID 随训练时间把目标从学生分布逐步移向教师；AMiD 用 α-mixture assistant distribution 调整 mode-seeking 与 mode-covering；FutureMind 按问题阶段注入不同推理先验。</p><div class="method-chips"><span class="chip">GKD</span><span class="chip">TAID</span><span class="chip">AMiD</span><span class="chip">FutureMind</span></div></div>
+            </article>
+            <article class="taxonomy-panel" id="t5" role="tabpanel">
+              <div><div class="big">N→1</div><p>结构不一致，或教师不止一个。</p></div>
+              <div><h3>Prune-then-distill / cross-tokenizer / knowledge fusion</h3><p>Minitron 与 Llama 3.2 先从大模型剪出小结构，再用 KD 恢复；FuseLLM 把多个教师的互补分布融合到一个学生；2026 的 Cross-Tokenizer Likelihood Scoring 则让不同 BPE 词表也能做概率级蒸馏。</p><div class="method-chips"><span class="chip">Minitron</span><span class="chip">Llama 3.2</span><span class="chip">FuseLLM / FuseChat</span><span class="chip">Cross-tokenizer scoring</span></div></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="chooser" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 04 · MODEL CHOOSER</div>
+            <h2>先说需求，再说模型</h2>
+            <p class="lead">这是工程默认值，不是脱离硬件、语言和数据分布的“总榜”。选择后会给出三档建议。</p>
+            <div class="chooser">
+              <div class="chooser-grid">
+                <div class="field"><label for="need">主要需求</label><select id="need"><option value="general">通用本地助手</option><option value="reasoning">数学 / 科学推理</option><option value="code">代码与算法题</option><option value="edge">手机 / 边缘部署</option><option value="medical">中英医疗推理</option><option value="embedding">检索 / 向量库</option><option value="research">自己做蒸馏研究</option></select></div>
+                <div class="field"><label for="budget">参数 / 显存预算</label><select id="budget"><option value="tiny">≤ 2B（约 1–5GB，视量化而定）</option><option value="small">3–8B（约 3–18GB）</option><option value="medium">9–32B（约 10–70GB）</option><option value="large">不敏感，优先效果</option></select></div>
+                <div class="field"><label for="openness">开源要求</label><select id="openness"><option value="weights">能下载权重即可</option><option value="permissive">优先宽松商用许可</option><option value="full">必须模型 + 数据 + 代码可复现</option></select></div>
+                <button class="recommend-btn" id="recommendBtn" type="button">生成建议</button>
+              </div>
+              <div class="recommendations" id="recommendations" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="models" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 05 · OPEN MODEL ATLAS</div>
+            <h2>可下载模型图鉴</h2>
+            <p class="lead">卡片中的“全链路”只给模型、蒸馏数据、训练 / 评估代码都能找到的项目。其余统一称“开放权重”，避免过度承诺。</p>
+            <div class="toolbar">
+              <input id="modelSearch" type="search" placeholder="搜索模型、教师或用途…" aria-label="搜索模型" />
+              <select id="taskFilter" aria-label="按任务筛选"><option value="all">全部任务</option><option value="general">通用</option><option value="reasoning">推理</option><option value="code">代码</option><option value="edge">端侧</option><option value="medical">医疗</option><option value="embedding">检索</option><option value="research">研究</option></select>
+              <select id="sizeFilter" aria-label="按参数筛选"><option value="all">全部尺寸</option><option value="tiny">≤ 2B</option><option value="small">3–8B</option><option value="medium">9–32B</option><option value="large">> 32B / 家族</option></select>
+              <select id="openFilter" aria-label="按开放度筛选"><option value="all">全部开放度</option><option value="full">全链路</option><option value="code">模型 + 方法代码</option><option value="weights">开放权重</option></select>
+            </div>
+            <div class="result-count" id="resultCount"></div>
+            <div class="model-grid" id="modelGrid"></div>
+          </div>
+        </section>
+
+        <section id="matrix" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 06 · METHOD MATRIX</div>
+            <h2>如果你要自己蒸馏，先看这张表</h2>
+            <div class="matrix-wrap">
+              <table>
+                <thead><tr><th>方法</th><th>教师访问</th><th>学生采样</th><th>同 tokenizer</th><th>解决什么</th><th>开源状态</th><th>首选场景</th></tr></thead>
+                <tbody>
+                  <tr><td>Response / CoT SFT</td><td>文本输出</td><td class="no">否</td><td class="yes">不要求</td><td>最便宜地搬运行为与推理风格</td><td class="yes">Open-R1 配方</td><td>API / 开放权重教师，专项任务</td></tr>
+                  <tr><td>MiniLLM</td><td>完整 logits</td><td class="yes">是</td><td class="yes">通常是</td><td>reverse KL，缓解生成分布低概率过估计</td><td class="yes">代码 / 数据 / checkpoint</td><td>白盒自回归 KD 基线</td></tr>
+                  <tr><td>GKD</td><td>学生序列上的教师 logits</td><td class="yes">是</td><td class="yes">通常是</td><td>纠正 exposure bias 与学生真实错误</td><td class="yes">TRL 已实现</td><td>可在线调用强教师</td></tr>
+                  <tr><td>DistiLLM / 2</td><td>logits + 学生输出</td><td class="yes">混合</td><td class="yes">通常是</td><td>skewed KL、自适应 off-policy、对比式 KD</td><td class="yes">官方代码</td><td>指令、代码、偏好、VLM 扩展</td></tr>
+                  <tr><td>TAID</td><td>教师 logits</td><td class="maybe">可选</td><td class="yes">是</td><td>用时间自适应中间分布跨越 capacity gap</td><td class="maybe">论文 + 模型</td><td>教师远强于学生、训练不稳</td></tr>
+                  <tr><td>AMiD</td><td>教师 logits</td><td class="maybe">兼容多种</td><td class="yes">是</td><td>以 α-mixture 统一 assistant distribution</td><td class="yes">ICLR 2026 + 代码</td><td>要控制 mode seeking / covering</td></tr>
+                  <tr><td>CSD</td><td>原始 logits</td><td class="maybe">可叠加</td><td class="yes">是</td><td>对齐相对 logit 差，避免 softmax 平滑</td><td class="maybe">ICLR 2026 论文</td><td>追求更高 fidelity-diversity</td></tr>
+                  <tr><td>Cross-tokenizer scoring</td><td>教师概率</td><td class="maybe">支持</td><td class="no">不要求</td><td>把不同 BPE 词表映射到同一概率空间</td><td class="yes">ICLR 2026 + 代码</td><td>跨模型家族、缩小端侧词表</td></tr>
+                  <tr><td>FuseLLM</td><td>多个教师分布 / 输出</td><td class="no">离线为主</td><td class="no">可不同</td><td>融合多个开源教师的互补知识</td><td class="yes">模型 / 数据 / 代码</td><td>没有单一绝对教师</td></tr>
+                  <tr><td>Minitron</td><td>父模型权重 + logits</td><td class="no">否</td><td class="yes">是</td><td>剪枝后用 KD 恢复性能</td><td class="yes">模型 + 工具 / notebook</td><td>已有大模型，要产出同族小尺寸</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="recipes" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 07 · TRAINING RECIPES</div>
+            <h2>四条最小可行路线</h2>
+            <div class="recipe-grid">
+              <article class="recipe"><div class="route">ROUTE A · BLACK-BOX</div><h3>只有教师输出：先做可验证的 response / CoT 蒸馏</h3><ol><li>从真实请求或公开题库抽样，先留独立测试集。</li><li>让教师多次采样，保留答案、必要推理和元数据。</li><li>用执行器 / 规则 / 检索证据验证；去重、去污染、控长度。</li><li>先 SFT，再用正确/错误轨迹做偏好优化或 verifier-RL。</li></ol><div class="use">适合：DeepSeek-R1 → Qwen / Llama 学生，数学、代码、医疗等可验证任务。</div><div class="avoid">不要：直接把一条长 CoT 当真值；不要用教师自己给自己打分作为唯一过滤。</div></article>
+              <article class="recipe"><div class="route">ROUTE B · WHITE-BOX</div><h3>同 tokenizer 且能取 logits：GKD / DistiLLM 起步</h3><ol><li>用 SFT 或学生初始化建立可用起点。</li><li>混合真实数据与学生 on-policy 生成，暴露学生会犯的错。</li><li>教师在这些 token 前缀上给分布；先试 skew KL / GKD。</li><li>capacity gap 大时加入 TAID 或 AMiD 的 assistant distribution。</li></ol><div class="use">适合：同模型家族压缩、可同时部署教师和学生的训练环境。</div><div class="avoid">不要：只在教师序列上训练却期待学生自由生成时同样稳定。</div></article>
+              <article class="recipe"><div class="route">ROUTE C · STRUCTURAL</div><h3>已有大模型：剪枝 → 轻量恢复 → 蒸馏</h3><ol><li>确定目标硬件约束，再选宽度、深度、头数或 FFN 剪枝。</li><li>结构化剪枝并做少量 teacher correction。</li><li>用原教师分布继续预训练恢复，再做指令后训练。</li><li>量化是最后一层部署优化，不要把它和 KD 混为一谈。</li></ol><div class="use">适合：Minitron / Llama 3.2 路线，要保持 tokenizer、生态和模型家族一致。</div><div class="avoid">不要：先随意缩结构，再用少量 SFT 期待恢复全部基础能力。</div></article>
+              <article class="recipe"><div class="route">ROUTE D · CROSS-FAMILY</div><h3>不同 tokenizer 或多教师：先对齐概率空间</h3><ol><li>若只取文本，直接做字符串级 response distillation。</li><li>若要概率级 KD，使用 ALM / contextual mapping / 2026 BPE scoring。</li><li>多个教师先做 task-wise 评估，避免弱教师在强项外拖累。</li><li>用 FuseLLM 式融合或路由，保留教师来源与样本标签。</li></ol><div class="use">适合：Qwen ↔ Llama ↔ Gemma 跨家族迁移、端侧缩词表、多教师集成。</div><div class="avoid">不要：把不同 tokenizer 的 token id 直接做 KL 对齐。</div></article>
+            </div>
+          </div>
+        </section>
+
+        <section id="frontier" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 08 · 2026 FRONTIER</div>
+            <h2>最新进展：不再只问“用哪个 KL”</h2>
+            <div class="timeline">
+              <article class="event"><time>2023–24</time><div><b>生成式 KD 的目标函数与 on-policy 问题被系统化</b><p>MiniLLM、GKD、DistiLLM 把焦点从分类式 KD 转向自回归生成、学生 rollout 与曝光偏差。</p></div></article>
+              <article class="event"><time>2024</time><div><b>蒸馏进入公开基础模型生产线</b><p>Llama 3.2、Minitron、Gemma 2/3 展示剪枝 + KD、预训练 logits 与指令教师如何进入模型家族构建。</p></div></article>
+              <article class="event"><time>2025</time><div><b>推理轨迹蒸馏成为主流</b><p>DeepSeek-R1-Distill、Open-R1、Phi-4-reasoning 把长 CoT、可验证过滤和后续 RL 组合成可复用范式。</p></div></article>
+              <article class="event"><time>ICLR 2026</time><div><b>assistant distribution 与跨 tokenizer 成熟</b><p>AMiD 系统化 α-mixture；Cross-Tokenizer Likelihood Scoring 用 BPE 递归结构做精确/近似概率转换；CSD 对齐相对 logits。</p></div></article>
+              <article class="event"><time>2026.06</time><div><b>Compress-Distill 研究“先压缩思维链再蒸馏”</b><p>用 Qwen3.5-397B-A17B 与 gpt-oss-120B 生成轨迹；压缩可把训练 token 降至原来的 12–30%，但原始轨迹仍保持最高准确率——这是速度/长度与精度的真实交换，不是免费午餐。</p></div></article>
+              <article class="event"><time>接下来</time><div><b>从答案模仿走向机制、交互和部署共同优化</b><p>值得追踪：circuit distillation、agent trajectory correction、diffusion LLM 轨迹蒸馏、以及按样本难度动态分配教师与思考预算。</p></div></article>
+            </div>
+          </div>
+        </section>
+
+        <section id="pitfalls" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 09 · EVALUATION & RISK</div>
+            <h2>一个蒸馏项目真正失败，通常不是 loss 写错</h2>
+            <div class="rubric">
+              <div><b>① 能力</b><span>任务准确率、生成质量、校准、长文本</span></div>
+              <div><b>② 效率</b><span>首 token 延迟、吞吐、峰值显存、输出长度</span></div>
+              <div><b>③ 泛化</b><span>新领域、难度外推、多语言、对抗提示</span></div>
+              <div><b>④ 合规</b><span>教师许可、数据来源、PII、可追溯性</span></div>
+            </div>
+            <details open><summary>为什么学生可能学到“像在推理”，却没有真正更会推理？</summary><div>文本轨迹监督首先复制的是行为分布。若数据不可验证、难度太低或风格高度重复，学生容易学会冗长模板。最小修正是：可执行验证、多样化问题、保留失败轨迹、同时评估最终答案与 token / 时间成本。</div></details>
+            <details><summary>教师越大越好吗？</summary><div>不一定。capacity gap 过大时，学生难以匹配尖锐或多峰的教师分布。Gemma 3 的消融显示，短训练期小教师可能更好，训练足够久大教师优势才反转；TAID / AMiD 正是在处理中间分布与训练稳定性。</div></details>
+            <details><summary>为什么只用离线教师数据会失效？</summary><div>训练时学生只看教师走过的正确前缀，推理时却会进入自己的错误前缀。GKD 和 DistiLLM 的 on-policy / adaptive off-policy 设计让教师在学生真实访问的状态上纠错。</div></details>
+            <details><summary>“MIT / Apache”是不是就能放心商用？</summary><div>仍需检查上游 base model、教师输出条款、训练数据和具体模型卡。例如 Qwen 派生模型通常承接 Apache 2.0，Llama 派生模型还受 Llama Community License 约束；Gemma 与 NVIDIA 也使用各自模型条款。页面标签只作工程筛选，不替代法律审查。</div></details>
+            <details><summary>医疗等专业模型应该怎么用？</summary><div>HuatuoGPT-o1 适合研究医疗推理和 RAG 原型，不应被当成临床诊断系统。专业蒸馏需要领域专家审核、来源可追溯检索、拒答机制和真实工作流评估，不能只看医学考试题。</div></details>
+          </div>
+        </section>
+
+        <section id="sources" data-section>
+          <div class="section-inner">
+            <div class="kicker">CHAPTER 10 · PRIMARY SOURCES</div>
+            <h2>论文、模型卡与官方仓库</h2>
+            <p class="lead">优先列一手资料；模型卡用于确认参数、教师、训练数据与许可证，会议页用于确认发表状态。</p>
+            <ol class="source-list">
+              <li><a href="https://arxiv.org/abs/2505.09388" target="_blank" rel="noreferrer">Qwen3 Technical Report</a> — strong-to-weak logit distillation 与小模型后训练。</li>
+              <li><a href="https://storage.googleapis.com/deepmind-media/gemma/Gemma3Report.pdf" target="_blank" rel="noreferrer">Gemma 3 Technical Report</a> — top-256 logits、IT teacher、teacher size 消融。</li>
+              <li><a href="https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/" target="_blank" rel="noreferrer">Meta Llama 3.2 官方说明</a> — 1B/3B 的结构化剪枝与 logit KD。</li>
+              <li><a href="https://github.com/deepseek-ai/DeepSeek-R1" target="_blank" rel="noreferrer">DeepSeek-R1 官方仓库</a> — 1.5B–70B 蒸馏家族、许可与 80 万样本说明。</li>
+              <li><a href="https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B" target="_blank" rel="noreferrer">DeepSeek-R1-0528-Qwen3-8B 模型卡</a> — 8B 新版 CoT 蒸馏与评测。</li>
+              <li><a href="https://github.com/huggingface/open-r1" target="_blank" rel="noreferrer">Open-R1 官方仓库</a> — 可复现 SFT 蒸馏、数据与评估。</li>
+              <li><a href="https://huggingface.co/open-r1/OpenR1-Distill-7B" target="_blank" rel="noreferrer">OpenR1-Distill-7B 模型卡</a> — 350k verified traces、Apache 2.0。</li>
+              <li><a href="https://huggingface.co/microsoft/Phi-4-mini-reasoning" target="_blank" rel="noreferrer">Phi-4-mini-reasoning 模型卡</a> — DeepSeek-R1 合成数学蒸馏数据。</li>
+              <li><a href="https://proceedings.iclr.cc/paper_files/paper/2025/hash/e664650506f1cf2b4696df892147c06e-Abstract-Conference.html" target="_blank" rel="noreferrer">TAID · ICLR 2025</a> 与 <a href="https://huggingface.co/SakanaAI/TAID-LLM-1.5B" target="_blank" rel="noreferrer">1.5B 模型</a>。</li>
+              <li><a href="https://github.com/NVlabs/Minitron" target="_blank" rel="noreferrer">NVIDIA Minitron</a> — 剪枝 + KD 的模型、工具与 notebook。</li>
+              <li><a href="https://arxiv.org/abs/2401.10491" target="_blank" rel="noreferrer">FuseLLM</a> 与 <a href="https://github.com/fanqiwan/FuseLLM" target="_blank" rel="noreferrer">官方仓库</a> — 多教师知识融合。</li>
+              <li><a href="https://huggingface.co/FreedomIntelligence/HuatuoGPT-o1-7B" target="_blank" rel="noreferrer">HuatuoGPT-o1-7B 模型卡</a> 与 <a href="https://huggingface.co/datasets/FreedomIntelligence/medical-o1-reasoning-SFT" target="_blank" rel="noreferrer">医疗蒸馏数据</a>。</li>
+              <li><a href="https://deepmind.google/research/publications/194199/" target="_blank" rel="noreferrer">EmbeddingGemma</a> — 308M 多语 embedding 与 geometric distillation。</li>
+              <li><a href="https://arxiv.org/abs/2306.08543" target="_blank" rel="noreferrer">MiniLLM · ICLR 2024</a> — reverse KL 与生成式白盒 KD。</li>
+              <li><a href="https://deepmind.google/research/publications/48050/" target="_blank" rel="noreferrer">GKD · ICLR 2024</a> — on-policy distillation。</li>
+              <li><a href="https://github.com/jongwooko/distillm" target="_blank" rel="noreferrer">DistiLLM · ICML 2024</a> — skewed KL 与 adaptive off-policy。</li>
+              <li><a href="https://github.com/jongwooko/distillm-2" target="_blank" rel="noreferrer">DistiLLM-2 · ICML 2025 Oral</a> — 对比式蒸馏及多任务扩展。</li>
+              <li><a href="https://proceedings.mlr.press/v267/busbridge25a.html" target="_blank" rel="noreferrer">Distillation Scaling Laws · ICML 2025</a> — 教师 / 学生 compute 分配。</li>
+              <li><a href="https://openreview.net/forum?id=7WPJ0EgPdW" target="_blank" rel="noreferrer">AMiD · ICLR 2026</a> 与 <a href="https://github.com/aailab-kaist/AMiD" target="_blank" rel="noreferrer">代码</a>。</li>
+              <li><a href="https://arxiv.org/abs/2509.25837" target="_blank" rel="noreferrer">Concrete Score Distillation · ICLR 2026</a> — 相对 logit score matching。</li>
+              <li><a href="https://iclr.cc/virtual/2026/poster/10008081" target="_blank" rel="noreferrer">Cross-Tokenizer Likelihood Scoring · ICLR 2026</a> 与 <a href="https://github.com/truongbuu/cross-tokenizer-scoring" target="_blank" rel="noreferrer">代码</a>。</li>
+              <li><a href="https://arxiv.org/abs/2602.01222" target="_blank" rel="noreferrer">FutureMind · ICLR 2026</a> — 面向检索推理的自适应知识蒸馏。</li>
+              <li><a href="https://arxiv.org/abs/2606.05988" target="_blank" rel="noreferrer">Compress-Distill · 2026-06</a> — 推理轨迹压缩的精度 / 效率权衡。</li>
+              <li><a href="https://huggingface.co/docs/trl/distillation_trainer" target="_blank" rel="noreferrer">Hugging Face TRL Distillation Trainer</a> — 可落地的现代 KD 训练接口。</li>
+              <li><a href="https://github.com/facebookresearch/MobileLLM" target="_blank" rel="noreferrer">MobileLLM-R1 · ICLR 2026</a> — 边界对照：强小模型可完全开放，但不必依赖蒸馏。</li>
+            </ol>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <div class="footer-inner">
+        <div><b>开源 LLM 蒸馏教师课</b><br />从“传什么”到“选哪个”，再到“怎么训练”。</div>
+        <div>资料截点 2026-07-16 · 基准成绩以原论文设置为准 · 医疗与许可信息不构成专业意见</div>
+      </div>
+    </footer>
+
+    <script>
+      const models = [
+        {
+          name: "Qwen3 小模型家族", size: "0.6B / 1.7B / 4B", sizeKey: ["tiny", "small"],
+          tasks: ["general", "reasoning", "edge"], open: "weights", license: "Apache 2.0",
+          teacher: "Qwen3 flagship models", method: "Strong-to-Weak logit KD",
+          desc: "思考 / 非思考双模式；小模型后训练直接蒸馏旗舰模型 logits，仅约四阶段流程 1/10 GPU 小时。",
+          fit: "通用中文、多语、本地 agent；希望许可宽松且尺寸跨度大。",
+          caveat: "训练数据与完整生产流水线未全开。",
+          model: "https://huggingface.co/Qwen/Qwen3-4B", source: "https://arxiv.org/abs/2505.09388"
+        },
+        {
+          name: "Gemma 3", size: "1B / 4B", sizeKey: ["tiny", "small"],
+          tasks: ["general", "edge"], open: "weights", license: "Gemma Terms",
+          teacher: "Large IT teacher", method: "Top-256 logit KD + RL",
+          desc: "预训练采样每 token 256 个 logits；指令模型继续从大型 IT teacher 蒸馏。4B 还支持图像。",
+          fit: "小尺寸多语、长上下文与 4B 轻量多模态。",
+          caveat: "不是 OSI 开源许可；训练数据不开放。",
+          model: "https://huggingface.co/google/gemma-3-4b-it", source: "https://storage.googleapis.com/deepmind-media/gemma/Gemma3Report.pdf"
+        },
+        {
+          name: "Llama 3.2", size: "1B / 3B", sizeKey: ["tiny", "small"],
+          tasks: ["general", "edge"], open: "weights", license: "Llama 3.2 Community",
+          teacher: "Llama 3.1 8B / 70B", method: "Structured pruning + logit KD",
+          desc: "从 8B 单次结构化剪枝，再用 8B / 70B token-level logits 在预训练阶段恢复能力。",
+          fit: "Arm / mobile 生态、端侧摘要、改写、轻量工具调用。",
+          caveat: "自定义许可证；完整预训练语料与 KD 代码未公开。",
+          model: "https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct", source: "https://ai.meta.com/blog/llama-3-2-connect-2024-vision-edge-mobile-devices/"
+        },
+        {
+          name: "DeepSeek-R1-Distill", size: "1.5B / 7B / 8B / 14B / 32B / 70B", sizeKey: ["tiny", "small", "medium", "large"],
+          tasks: ["reasoning", "code", "general"], open: "weights", license: "MIT + 上游许可",
+          teacher: "DeepSeek-R1", method: "800k response / CoT SFT",
+          desc: "R1 推理数据微调 Qwen2.5-Math、Qwen2.5、Llama 3.x 基座，覆盖从笔记本到多卡服务器。",
+          fit: "数学、代码、逻辑推理；要一个跨度完整的开箱家族。",
+          caveat: "原始 80 万样本与完整训练流程没有全部开放。",
+          model: "https://huggingface.co/deepseek-ai/DeepSeek-R1", source: "https://github.com/deepseek-ai/DeepSeek-R1"
+        },
+        {
+          name: "DeepSeek-R1-0528-Qwen3-8B", size: "8B", sizeKey: ["small"],
+          tasks: ["reasoning", "code"], open: "weights", license: "MIT",
+          teacher: "DeepSeek-R1-0528", method: "CoT distillation",
+          desc: "把新版 R1-0528 的思维链蒸馏到 Qwen3-8B Base；官方报告 AIME 2024 为 86.0。",
+          fit: "单张高显存卡上的强数学 / 竞赛代码推理。",
+          caveat: "长思维链会提高延迟；数据与训练代码未全开。",
+          model: "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B", source: "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
+        },
+        {
+          name: "OpenR1-Distill-7B", size: "7B", sizeKey: ["small"],
+          tasks: ["reasoning", "code", "research"], open: "full", license: "Apache 2.0",
+          teacher: "DeepSeek-R1", method: "350k verified traces + SFT",
+          desc: "以 Mixture-of-Thoughts 复现 R1-Distill-7B 能力，数据、配方、训练与评估入口公开。",
+          fit: "重视可复现、要改数据混合或继续做 RLVR 研究。",
+          caveat: "主要英语；不是所有 DeepSeek 原流程的逐项复刻。",
+          model: "https://huggingface.co/open-r1/OpenR1-Distill-7B", source: "https://github.com/huggingface/open-r1"
+        },
+        {
+          name: "Phi-4-mini-reasoning", size: "3.8B", sizeKey: ["small"],
+          tasks: ["reasoning", "code", "edge"], open: "weights", license: "MIT",
+          teacher: "DeepSeek-R1", method: "Verified synthetic math distillation",
+          desc: "约百万道合成数学题、每题 8 个 rollout，经正确性筛选形成约 30B token 数学内容。",
+          fit: "4B 级英语数学、教育辅导、轻量科学推理。",
+          caveat: "偏英语和数学；完整合成数据未作为训练集发布。",
+          model: "https://huggingface.co/microsoft/Phi-4-mini-reasoning", source: "https://huggingface.co/microsoft/Phi-4-mini-reasoning"
+        },
+        {
+          name: "TAID-LLM-1.5B", size: "1.5B", sizeKey: ["tiny"],
+          tasks: ["general", "research", "edge"], open: "weights", license: "Apache 2.0",
+          teacher: "Qwen2-72B-Instruct", method: "Temporally adaptive interpolated KD",
+          desc: "训练初期靠近学生分布，随后逐步移向教师，缓解 capacity gap、mode averaging 与 collapse。",
+          fit: "研究自适应 KD；需要一个可直接比较的 1.5B checkpoint。",
+          caveat: "官方明确称实验原型，不建议关键生产环境。",
+          model: "https://huggingface.co/SakanaAI/TAID-LLM-1.5B", source: "https://proceedings.iclr.cc/paper_files/paper/2025/hash/e664650506f1cf2b4696df892147c06e-Abstract-Conference.html"
+        },
+        {
+          name: "NVIDIA Minitron", size: "4B / 8B", sizeKey: ["small"],
+          tasks: ["general", "research"], open: "code", license: "NVIDIA Open Model License",
+          teacher: "Nemotron-4 15B / Llama 3.1 8B / NeMo", method: "Prune-then-distill",
+          desc: "剪 embedding、attention heads、FFN 或深度，再用持续预训练蒸馏恢复；模型与工具 notebook 可用。",
+          fit: "想从既有模型家族系统地产出多个小尺寸基座。",
+          caveat: "数据语料并非完整开放；许可证需单独审阅。",
+          model: "https://huggingface.co/nvidia/Minitron-4B-Base", source: "https://github.com/NVlabs/Minitron"
+        },
+        {
+          name: "FuseLLM / FuseChat", size: "7B", sizeKey: ["small"],
+          tasks: ["general", "research"], open: "full", license: "依 checkpoint",
+          teacher: "多个开源 LLM / Chat 模型", method: "Multi-teacher knowledge fusion",
+          desc: "先对齐不同教师的 token 分布 / 输出，再把互补能力融合进单个学生；模型、数据和代码公开。",
+          fit: "多教师各有强项、没有单一绝对教师，或研究模型融合。",
+          caveat: "工程复杂度和上游许可证会随教师数量增加。",
+          model: "https://huggingface.co/Wanfq/FuseLLM-7B", source: "https://github.com/fanqiwan/FuseLLM"
+        },
+        {
+          name: "HuatuoGPT-o1-7B", size: "7B", sizeKey: ["small"],
+          tasks: ["medical", "reasoning"], open: "full", license: "Apache 2.0",
+          teacher: "GPT-4o / DeepSeek-R1 + medical verifier", method: "Domain reasoning traces + verifier",
+          desc: "中英医疗复杂推理模型；医疗可验证问题、reasoning SFT 数据、模型与仓库公开。",
+          fit: "医疗 RAG、领域推理研究和数据配方复现。",
+          caveat: "不可直接用于临床诊断；教师并非全部开放。",
+          model: "https://huggingface.co/FreedomIntelligence/HuatuoGPT-o1-7B", source: "https://github.com/FreedomIntelligence/HuatuoGPT-o1"
+        },
+        {
+          name: "EmbeddingGemma", size: "308M", sizeKey: ["tiny"],
+          tasks: ["embedding", "edge"], open: "weights", license: "Gemma Terms",
+          teacher: "Gemini Embedding", method: "Geometric embedding distillation",
+          desc: "多语 text embedding；通过 encoder-decoder 初始化与几何蒸馏捕获大模型表征关系。",
+          fit: "端侧 RAG、语义检索、向量数据库；不需要生成式对话。",
+          caveat: "教师为闭源 Gemini Embedding；不是生成 LLM。",
+          model: "https://huggingface.co/google/embeddinggemma-300m", source: "https://deepmind.google/research/publications/194199/"
+        }
+      ];
+
+      const chooserRules = {
+        general: {
+          tiny: ["Qwen3 小模型家族", "Gemma 3", "Llama 3.2"],
+          small: ["Qwen3 小模型家族", "Gemma 3", "Llama 3.2"],
+          medium: ["DeepSeek-R1-Distill", "Qwen3 小模型家族", "NVIDIA Minitron"],
+          large: ["DeepSeek-R1-Distill", "Qwen3 小模型家族", "FuseLLM / FuseChat"]
+        },
+        reasoning: {
+          tiny: ["DeepSeek-R1-Distill", "TAID-LLM-1.5B", "Qwen3 小模型家族"],
+          small: ["Phi-4-mini-reasoning", "DeepSeek-R1-0528-Qwen3-8B", "OpenR1-Distill-7B"],
+          medium: ["DeepSeek-R1-Distill", "DeepSeek-R1-0528-Qwen3-8B", "OpenR1-Distill-7B"],
+          large: ["DeepSeek-R1-Distill", "DeepSeek-R1-0528-Qwen3-8B", "Phi-4-mini-reasoning"]
+        },
+        code: {
+          tiny: ["DeepSeek-R1-Distill", "Qwen3 小模型家族", "Phi-4-mini-reasoning"],
+          small: ["DeepSeek-R1-0528-Qwen3-8B", "OpenR1-Distill-7B", "Phi-4-mini-reasoning"],
+          medium: ["DeepSeek-R1-Distill", "DeepSeek-R1-0528-Qwen3-8B", "OpenR1-Distill-7B"],
+          large: ["DeepSeek-R1-Distill", "DeepSeek-R1-0528-Qwen3-8B", "OpenR1-Distill-7B"]
+        },
+        edge: {
+          tiny: ["Qwen3 小模型家族", "Llama 3.2", "Gemma 3"],
+          small: ["Phi-4-mini-reasoning", "Qwen3 小模型家族", "Llama 3.2"],
+          medium: ["Qwen3 小模型家族", "NVIDIA Minitron", "Llama 3.2"],
+          large: ["Qwen3 小模型家族", "Llama 3.2", "Gemma 3"]
+        },
+        medical: {
+          tiny: ["Qwen3 小模型家族", "DeepSeek-R1-Distill", "EmbeddingGemma"],
+          small: ["HuatuoGPT-o1-7B", "OpenR1-Distill-7B", "Qwen3 小模型家族"],
+          medium: ["HuatuoGPT-o1-7B", "DeepSeek-R1-Distill", "OpenR1-Distill-7B"],
+          large: ["HuatuoGPT-o1-7B", "DeepSeek-R1-Distill", "OpenR1-Distill-7B"]
+        },
+        embedding: {
+          tiny: ["EmbeddingGemma", "Qwen3 小模型家族", "Gemma 3"],
+          small: ["EmbeddingGemma", "Gemma 3", "Qwen3 小模型家族"],
+          medium: ["EmbeddingGemma", "Gemma 3", "Qwen3 小模型家族"],
+          large: ["EmbeddingGemma", "Gemma 3", "Qwen3 小模型家族"]
+        },
+        research: {
+          tiny: ["TAID-LLM-1.5B", "Qwen3 小模型家族", "EmbeddingGemma"],
+          small: ["OpenR1-Distill-7B", "NVIDIA Minitron", "FuseLLM / FuseChat"],
+          medium: ["NVIDIA Minitron", "OpenR1-Distill-7B", "FuseLLM / FuseChat"],
+          large: ["OpenR1-Distill-7B", "NVIDIA Minitron", "FuseLLM / FuseChat"]
+        }
+      };
+
+      function renderRecommendations() {
+        const need = document.getElementById("need").value;
+        const budget = document.getElementById("budget").value;
+        const openness = document.getElementById("openness").value;
+        let names = [...chooserRules[need][budget]];
+        if (openness === "full") {
+          const full = models.filter(m => m.open === "full" && m.tasks.includes(need === "code" ? "reasoning" : need)).map(m => m.name);
+          names = [...new Set([...full, ...names])].slice(0, 3);
+        } else if (openness === "permissive") {
+          names.sort((a, b) => {
+            const score = n => /Apache|MIT/.test(models.find(m => m.name === n).license) ? 0 : 1;
+            return score(a) - score(b);
+          });
+        }
+        const chosen = names.map(n => models.find(m => m.name === n)).filter(Boolean).slice(0, 3);
+        document.getElementById("recommendations").innerHTML = chosen.map((m, i) => `
+          <article class="rec">
+            <div class="rank">${i + 1}</div>
+            <small>${i === 0 ? "首选" : i === 1 ? "备选" : "研究 / 特殊需求"}</small>
+            <h3>${m.name}</h3>
+            <p>${m.fit}</p>
+            <a href="${m.model}" target="_blank" rel="noreferrer">打开模型 / 项目 ↗</a>
+          </article>`).join("");
+        window.currentRecommendation = chosen.map((m, i) => `${i + 1}. ${m.name}（${m.size}）：${m.fit}`).join("\n");
+      }
+
+      function renderModels() {
+        const q = document.getElementById("modelSearch").value.toLowerCase().trim();
+        const task = document.getElementById("taskFilter").value;
+        const size = document.getElementById("sizeFilter").value;
+        const open = document.getElementById("openFilter").value;
+        const filtered = models.filter(m => {
+          const haystack = [m.name, m.teacher, m.method, m.desc, m.fit, m.license].join(" ").toLowerCase();
+          return (!q || haystack.includes(q)) && (task === "all" || m.tasks.includes(task)) && (size === "all" || m.sizeKey.includes(size)) && (open === "all" || m.open === open);
+        });
+        document.getElementById("resultCount").textContent = `显示 ${filtered.length} / ${models.length} 个模型或家族`;
+        document.getElementById("modelGrid").innerHTML = filtered.length ? filtered.map(m => `
+          <article class="model-card">
+            <div class="model-top"><span class="kicker">${m.method}</span><span class="badge ${m.open === "full" ? "open" : m.open === "code" ? "research" : "partial"}">${m.open === "full" ? "全链路" : m.open === "code" ? "模型 + 方法代码" : "开放权重"}</span></div>
+            <h3>${m.name}</h3>
+            <div class="badges"><span class="badge">${m.size}</span><span class="badge">${m.license}</span><span class="badge research">教师：${m.teacher}</span></div>
+            <p>${m.desc}</p>
+            <div class="fit"><b>适合：</b>${m.fit}<br /><b style="color:#9b3c39">注意：</b>${m.caveat}</div>
+            <div class="links"><a href="${m.model}" target="_blank" rel="noreferrer">模型 ↗</a><a href="${m.source}" target="_blank" rel="noreferrer">证据 ↗</a></div>
+          </article>`).join("") : '<div class="empty">没有匹配项。试试放宽尺寸或开放度筛选。</div>';
+      }
+
+      document.querySelectorAll(".taxonomy-tabs button").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".taxonomy-tabs button").forEach(b => { b.classList.remove("active"); b.setAttribute("aria-selected", "false"); });
+          document.querySelectorAll(".taxonomy-panel").forEach(p => p.classList.remove("active"));
+          btn.classList.add("active"); btn.setAttribute("aria-selected", "true");
+          document.getElementById(btn.dataset.tab).classList.add("active");
+        });
+      });
+      document.getElementById("recommendBtn").addEventListener("click", renderRecommendations);
+      ["need", "budget", "openness"].forEach(id => document.getElementById(id).addEventListener("change", renderRecommendations));
+      ["modelSearch", "taskFilter", "sizeFilter", "openFilter"].forEach(id => document.getElementById(id).addEventListener(id === "modelSearch" ? "input" : "change", renderModels));
+      document.getElementById("copySummary").addEventListener("click", async event => {
+        const text = `开源 LLM 蒸馏选型建议（资料截点 2026-07-16）\n${window.currentRecommendation || "请先在“需求选模型”中生成建议。"}`;
+        try { await navigator.clipboard.writeText(text); event.target.textContent = "已复制"; setTimeout(() => event.target.textContent = "复制选型结论", 1500); }
+        catch { window.prompt("复制以下内容：", text); }
+      });
+
+      const sections = [...document.querySelectorAll("[data-section]")];
+      const tocLinks = [...document.querySelectorAll("#toc a")];
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            tocLinks.forEach(a => a.classList.toggle("active", a.getAttribute("href") === `#${entry.target.id}`));
+          }
+        });
+      }, { rootMargin: "-25% 0px -65% 0px" });
+      sections.forEach(s => observer.observe(s));
+      window.addEventListener("scroll", () => {
+        const doc = document.documentElement;
+        const ratio = doc.scrollTop / Math.max(1, doc.scrollHeight - doc.clientHeight);
+        document.getElementById("progressBar").style.width = `${Math.min(100, ratio * 100)}%`;
+      }, { passive: true });
+
+      renderRecommendations();
+      renderModels();
+    </script>
+  </body>
+</html>
