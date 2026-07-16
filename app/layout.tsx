@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "3D/4D World Model 学习地图 · 2026",
+  title: "3D/4D World Model 问题推进图 · 2026",
   description:
-    "从 NeRF、DUSt3R、VGGT 到 D4RT、FlashWorld 与概率物理世界模型：梳理 3D/4D 表征、分布学习、持久记忆与动作条件预测。",
+    "29 篇核心论文全文复核：用问题谱系、可执行阅读顺序和带实验证据的能力矩阵，梳理 3D/4D reconstruction、distribution、memory 与 physical world model。",
 };
 
 export default function RootLayout({
