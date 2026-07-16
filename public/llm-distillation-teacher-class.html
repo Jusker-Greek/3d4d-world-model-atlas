@@ -247,7 +247,7 @@
       }
       @media print {
         @page { size: A4 portrait; margin: 12mm 11mm 14mm; }
-        .topbar, aside, .hero-actions, .toolbar, .taxonomy-tabs, .chooser-grid, .top-actions { display: none !important; }
+        .skip-link, .topbar, aside, .hero-actions, .toolbar, .taxonomy-tabs, .chooser-grid, .top-actions { display: none !important; }
         .layout { display: block; }
         main { padding-bottom: 0; }
         .hero { min-height: auto; padding-top: 24mm; color: var(--ink); background: white; break-after: page; }
@@ -257,7 +257,9 @@
         .hero-card { color: var(--ink); background: #f3f0e8; border-color: var(--line); box-shadow: none; }
         .hero-card .stamp { color: var(--orange); }
         .hero-card ol { color: var(--ink); }
-        .metrics { color: var(--ink); }
+        .metrics { grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 24px; color: var(--ink); }
+        .metric { padding: 10px 8px; }
+        .metric strong { font-size: 19pt; }
         .metric { border-top-color: var(--line); }
         .metric strong { color: var(--ink); }
         section { padding: 22px 0; break-inside: auto; }
