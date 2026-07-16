@@ -1,2 +1,2 @@
-:HL["/3d4d-world-model-atlas/_next/static/chunks/0npp3c4am7z-~.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"/_not-found","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}},"staleTime":300,"buildId":"ULliPMXTyoK_pOjHfAqjY"}
+:HL["/3d4d-world-model-atlas/_next/static/chunks/0id~cdsy15oqs.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"/_not-found","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}},"staleTime":300,"buildId":"EMszpNAxPRbrOpwQARuKI"}
