@@ -5,6 +5,8 @@ import {
   branchCounts,
   d4rtCapabilityColumns,
   d4rtCapabilityMatrix,
+  diagnosticGates,
+  diagnostics,
   distributionColumns,
   distributionMatrix,
   dossiers,
@@ -93,6 +95,18 @@ const lineages = [
     kinds: ["direct", "concept", "concept"],
   },
 ];
+
+const diagnosticSources = [
+  { name: "Probe3D", note: "冻结特征后分别测 3D 结构与跨视角表面一致性", url: "https://openaccess.thecvf.com/content/CVPR2024/html/Banani_Probing_the_3D_Awareness_of_Visual_Foundation_Models_CVPR_2024_paper.html" },
+  { name: "Feat2GS", note: "用可分解的 3DGS readout 分开几何与纹理 awareness", url: "https://arxiv.org/abs/2412.09606" },
+  { name: "EquiPose", note: "相对 pose 必须满足 A→B 与 B→A 互逆的置换等变性", url: "https://openaccess.thecvf.com/content/CVPR2025/html/Liu_EquiPose_Exploiting_Permutation_Equivariance_for_Relative_Camera_Pose_Estimation_CVPR_2025_paper.html" },
+  { name: "MVGBench", note: "把多视图生成的几何、纹理、画质和语义分开评估", url: "https://openaccess.thecvf.com/content/ICCV2025/html/Xie_MVGBench_a_Comprehensive_Benchmark_for_Multi-view_Generation_Models_ICCV_2025_paper.html" },
+  { name: "ViewDiag", note: "指出“跨视角一致但一直答错”，不能把 consistency 当 accuracy", url: "https://openaccess.thecvf.com/content/CVPR2026W/MULA2026/html/Bhat_Consistent_Yet_Wrong_Evidence_Insensitivity_in_Spatial_Vision-Language_Models_CVPRW_2026_paper.html" },
+  { name: "ViewBench", note: "用相机闭环回到起点，直接测长程世界记忆的几何漂移", url: "https://openreview.net/forum?id=eXgmwOOvlR" },
+];
+
+const dossierById = Object.fromEntries(dossiers.map((paper) => [paper.id, paper]));
+const diagnosticByPaper = Object.fromEntries(diagnostics.map((experiment) => [experiment.paperId, experiment]));
 
 const statusMeta: Record<CellState, { mark: string; label: string }> = {
   yes: { mark: "✓", label: "论文有直接证据" },
@@ -214,9 +228,9 @@ export default function Home() {
         <a className="brand" href="#top"><span>4D</span> FIELD GUIDE</a>
         <div className="chapter-links">
           {[
-            ["01", "怎么读", "#start"], ["02", "先验 vs 分布", "#answer"], ["03", "谱系", "#tree"],
-            ["04", "重建表", "#geometry-matrix"], ["05", "分布表", "#distribution-matrix"], ["06", "D4RT 表", "#d4rt-table"],
-            ["07", "逐篇卡", "#dossiers"], ["08", "方法", "#method"],
+            ["01", "怎么读", "#start"], ["02", "先验 vs 分布", "#answer"], ["03", "PWP 压力测试", "#stress-test"],
+            ["04", "谱系", "#tree"], ["05", "重建表", "#geometry-matrix"], ["06", "分布表", "#distribution-matrix"],
+            ["07", "D4RT 表", "#d4rt-table"], ["08", "逐篇卡", "#dossiers"], ["09", "方法", "#method"],
           ].map(([i, label, href]) => <a href={href} key={href}><b>{i}</b>{label}</a>)}
         </div>
       </nav>
@@ -249,8 +263,80 @@ export default function Home() {
         <div className="answer-callout"><b>一句话判断</b><p>“跨很多 3D 样本训练”只证明学到 <em>prior</em>；只有对固定条件能产生并评估多个合理 3D/4D 假设，才证明学到 <em>distribution</em>。</p></div>
       </section>
 
+      <section className="section stress-section" id="stress-test">
+        <SectionHeading index="03 · FALSIFICATION PROTOCOL" title={<>Pixel→World→Pixel：如何排除<em>强 autoencoder 捷径</em></>} note="这组实验不能从哲学上“证明模型理解了世界”；它能够逐层否定更弱的解释：纹理匹配、训练轨迹插值、成对像素回归和无物理含义的 token cache。" />
+
+        <div className="falsification-warning">
+          <b>首先修正一个标准</b>
+          <p>“知道这是椅子”和“知道相机转 30° 时表面点怎样投影”是两种能力。一个 pose 模型可以有真实的投影几何能力而没有类别语义；因此应在论文的声称边界内分层测试。</p>
+        </div>
+
+        <div className="grounding-levels">
+          <article><span>G</span><small>GEOMETRIC</small><h3>投影几何</h3><p>depth、pose、world point、visibility 可以在不看目标像素时预测目标位置，并满足 SE(3) 组合。</p></article>
+          <article><span>O</span><small>OBJECT-CENTRIC</small><h3>对象持久性</h3><p>纹理、视角和遮挡改变后，仍保持同一对象、部件、身份和 3D 轨迹。</p></article>
+          <article><span>P</span><small>PHYSICAL</small><h3>物理因果</h3><p>可以分别介入 camera、object motion、light、material 或 action，而不污染无关状态。</p></article>
+          <article><span>D</span><small>DISTRIBUTIONAL</small><h3>条件分布</h3><p>相同可见证据存在多个隐藏世界/未来时，输出覆盖各 mode 并随新证据收缩。</p></article>
+        </div>
+
+        <div className="pwp-contrast">
+          <div className="grounded-route">
+            <small>可解释路径</small>
+            <div><b>pixel p</b><i>→</i><b>depth + K + T</b><i>→</i><strong>world point X</strong><i>→</i><b>K′ + T′ + visibility</b><i>→</i><b>pixel p′</b></div>
+            <code>X = T⁻¹ π⁻¹(p,d,K) &nbsp;;&nbsp; p′ = π(K′T′X)</code>
+          </div>
+          <div className="shortcut-route">
+            <small>不能被普通重建 loss 排除的路径</small>
+            <div><b>input pixels + camera token</b><i>→</i><strong>high-dimensional latent</strong><i>→</i><b>target pixels / pointmap</b></div>
+            <p>它在 IID 数据上可以一样准；只有因子介入、组合和闭环才能区分两者。</p>
+          </div>
+        </div>
+
+        <div className="stress-subhead">
+          <div><small>TEST SUITE</small><h3>八个可独立执行的压力测试</h3></div>
+          <p>每次只改一个物理因子；不把换纹理、换相机和换数据域捆在同一次实验里。</p>
+        </div>
+        <div className="gate-grid">
+          {diagnosticGates.map((gate) => (
+            <article key={gate.id}>
+              <span>{gate.id}</span><h3>{gate.title}</h3><p>{gate.question}</p><code>{gate.equation}</code>
+            </article>
+          ))}
+        </div>
+
+        <div className="minimal-gate">
+          <header><small>MINIMAL GATE LADDER</small><h3>第一轮先不训新模型</h3></header>
+          <ol>
+            <li><b>H1a · 纹理介入</b><p>只替换贴图，冻结模型、mesh、camera、light 和 metric。如果 pose/pointmap 大幅改变，先拒绝几何不变性。</p></li>
+            <li><b>H1b · 相机组合</b><p>H1a 通过后，只改 camera transform；检查 g₁ 后 g₂ 是否等于 g₂g₁，以及 A→B 是否与 B→A 互逆。</p></li>
+            <li><b>H1c · 中介因果</b><p>禁用 learned pixel decoder，只把模型预测的 W = {`{depth, pose, points, visibility}`} 送入固定解析 renderer。若目标视图仍可解释，才证明 W 对任务是充分中介。</p></li>
+          </ol>
+          <aside><b>对照组</b><p>同一评测同时放入纯 pixel predictor、经典 calibrated triangulation/BA 和 GT geometry renderer。前者是“强 autoencoder”对照，后两者给出几何规律和上限。</p></aside>
+        </div>
+
+        <div className="stress-subhead source-heading">
+          <div><small>PRIOR ART</small><h3>已有评测到哪一步</h3></div>
+          <p>这个方向不是从零开始；新的部分是把 feature probing、解析 PWP 闭环、因果介入和歧义分布合成对 3D/4D GFM 的分层协议。</p>
+        </div>
+        <div className="source-strip">
+          {diagnosticSources.map((source) => <a key={source.name} href={source.url} target="_blank" rel="noreferrer"><strong>{source.name}<span>↗</span></strong><p>{source.note}</p></a>)}
+        </div>
+
+        <details className="diagnostic-index">
+          <summary><span>29 篇论文的最小证伪实验索引</span><small>展开总表 · 逐篇完整 protocol 也已写入下方证据卡</small><i>+</i></summary>
+          <div className="diagnostic-table-wrap">
+            <table className="diagnostic-table">
+              <thead><tr><th>Paper</th><th>声称层级</th><th>最小 gate</th><th>唯一改变</th><th>捷径失败指纹</th><th>主指标</th></tr></thead>
+              <tbody>{diagnostics.map((experiment) => {
+                const paper = dossierById[experiment.paperId];
+                return <tr key={experiment.paperId}><td><a href={`#${paper.id}`}>{paper.title}</a></td><td>{experiment.target}</td><td><b>{experiment.gate}</b><small>{experiment.name}</small></td><td>{experiment.singleVariable}</td><td>{experiment.shortcutFailure}</td><td>{experiment.metric}</td></tr>;
+              })}</tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
       <section className="section dark-section lineage-section" id="tree">
-        <SectionHeading light index="03 · LITERATURE LINEAGE" title={<>一棵树不够：这是六条<em>问题推进链</em></>} note="实线是直接代码/架构继承；虚线是表征继承；点线仅表示在解决同一未决问题。点线不是“后者建立在前者代码上”。" />
+        <SectionHeading light index="04 · LITERATURE LINEAGE" title={<>一棵树不够：这是六条<em>问题推进链</em></>} note="实线是直接代码/架构继承；虚线是表征继承；点线仅表示在解决同一未决问题。点线不是“后者建立在前者代码上”。" />
         <div className="relation-legend">
           <span><i className="legend-line direct" />直接继承</span><span><i className="legend-line representation" />表征继承</span><span><i className="legend-line concept" />问题延续 / 对照</span>
         </div>
@@ -272,14 +358,14 @@ export default function Home() {
       </section>
 
       <section className="section matrix-section" id="geometry-matrix">
-        <SectionHeading index="04 · RECONSTRUCTION MATRIX" title={<>不是“谁最好”，而是<em>哪一块被解决</em></>} note="结构仿照你给出的 D4RT Table 2，但增加“未来预测、度量尺度、持久记忆、多解分布”，并为每格附上实验或论文陈述。悬停 / 点击格子查看证据。" />
+        <SectionHeading index="05 · RECONSTRUCTION MATRIX" title={<>不是“谁最好”，而是<em>哪一块被解决</em></>} note="结构仿照你给出的 D4RT Table 2，但增加“未来预测、度量尺度、持久记忆、多解分布”，并为每格附上实验或论文陈述。悬停 / 点击格子查看证据。" />
         <div className="matrix-legend"><span className="yes">✓</span> 有直接证据 <span className="partial">◐</span> 部分满足 / 需后处理 <span className="no">×</span> 未解决 / 有反证</div>
         <EvidenceMatrix columns={geometryColumns} rows={geometryMatrix} />
         <p className="matrix-footnote">表中“多解分布”要求同一条件下能采样多个合理 3D/4D，并有分布级验证。confidence、heteroscedastic variance、跨场景训练都不足以单独获得 ✓。</p>
       </section>
 
       <section className="section distribution-section" id="distribution-matrix">
-        <SectionHeading index="05 · DISTRIBUTION MATRIX" title={<>谁真的在形成<em>3D / 4D 分布</em>？</>} note="把“原生 3D 状态”和“显式多解采样”分开：MVDream 有多解但主要在多视图图像空间；PointWorld 有原生 3D dynamics，却不是多未来生成器。" />
+        <SectionHeading index="06 · DISTRIBUTION MATRIX" title={<>谁真的在形成<em>3D / 4D 分布</em>？</>} note="把“原生 3D 状态”和“显式多解采样”分开：MVDream 有多解但主要在多视图图像空间；PointWorld 有原生 3D dynamics，却不是多未来生成器。" />
         <div className="matrix-legend"><span className="yes">✓</span> 直接满足 <span className="partial">◐</span> 间接 / 有限满足 <span className="no">×</span> 没有证明</div>
         <EvidenceMatrix columns={distributionColumns} rows={distributionMatrix} />
         <div className="matrix-insight-grid">
@@ -290,7 +376,7 @@ export default function Home() {
       </section>
 
       <section className="section d4rt-section" id="d4rt-table">
-        <SectionHeading index="06 · THE REQUESTED TABLE" title={<>把 D4RT 原表复刻成<em>可查证表格</em></>} note="下面严格对应 D4RT 原论文 Table 2 的六个 capability。它能说明 D4RT 的接口统一性，但不能回答“是否学到多未来 3D 分布”。" />
+        <SectionHeading index="07 · THE REQUESTED TABLE" title={<>把 D4RT 原表复刻成<em>可查证表格</em></>} note="下面严格对应 D4RT 原论文 Table 2 的六个 capability。它能说明 D4RT 的接口统一性，但不能回答“是否学到多未来 3D 分布”。" />
         <EvidenceMatrix columns={d4rtCapabilityColumns} rows={d4rtCapabilityMatrix} compact />
         <div className="d4rt-reading">
           <div><span>真正新增</span><strong>统一的 4D ray query</strong><p>query = (u, v, source time, target time, target camera)，同一个 decoder 稀疏读取 depth 与跨时 3D correspondence。</p></div>
@@ -301,7 +387,7 @@ export default function Home() {
       </section>
 
       <section className="section library-section" id="dossiers">
-        <SectionHeading light index="07 · PAPER DOSSIERS" title={<>每篇只保留一个<em>不可再缩的贡献</em></>} note="“核心贡献”不是摘要复述，而是相对直接前驱新增的最小机制。展开卡片即可看到前驱、关系类型、支持实验、反证/局限与下一篇。" />
+        <SectionHeading light index="08 · PAPER DOSSIERS" title={<>每篇只保留一个<em>不可再缩的贡献</em></>} note="“核心贡献”不是摘要复述，而是相对直接前驱新增的最小机制。现在每张卡还包含一个仅改单变量的“强 autoencoder 证伪 gate”。" />
         <div className="dossier-toolbar">
           <label><span>搜索论文 / 机制 / 局限</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="例如：pointmap、未来、memory、metric scale" /></label>
           <div className="branch-filters" aria-label="按研究主线筛选">
@@ -320,6 +406,21 @@ export default function Home() {
               </summary>
               <div className="dossier-body">
                 <div className="dossier-core"><span>最小独有贡献</span><p>{paper.unique}</p></div>
+                <div className="diagnostic-proposal">
+                  <header>
+                    <div><span>{diagnosticByPaper[paper.id].gate}</span><small>{diagnosticByPaper[paper.id].target}</small></div>
+                    <h4>{diagnosticByPaper[paper.id].name}</h4>
+                    <b>实验设想 · 尚未运行</b>
+                  </header>
+                  <dl className="diagnostic-protocol">
+                    <div><dt>唯一改变</dt><dd>{diagnosticByPaper[paper.id].singleVariable}</dd></div>
+                    <div><dt>冻结变量</dt><dd>{diagnosticByPaper[paper.id].frozen}</dd></div>
+                    <div className="protocol-wide"><dt>最小 protocol</dt><dd>{diagnosticByPaper[paper.id].protocol}</dd></div>
+                    <div className="shortcut-signal"><dt>若只是表层捷径</dt><dd>{diagnosticByPaper[paper.id].shortcutFailure}</dd></div>
+                    <div><dt>通过标准</dt><dd>{diagnosticByPaper[paper.id].passCriterion}</dd></div>
+                    <div className="protocol-wide metric-line"><dt>主指标</dt><dd>{diagnosticByPaper[paper.id].metric}</dd></div>
+                  </dl>
+                </div>
                 <dl>
                   <div><dt>建立在什么上</dt><dd>{paper.buildsOn}</dd></div>
                   <div><dt>哪个实验证明</dt><dd>{paper.evidence}</dd></div>
@@ -334,7 +435,7 @@ export default function Home() {
       </section>
 
       <section className="section method-section" id="method">
-        <SectionHeading index="08 · METHOD & BOUNDARY" title={<>这张地图如何<em>避免伪关系</em></>} note="引用图只能找候选关系，不能替代读文。最终边与单元格都回到论文的 method、ablation、limitations 和 evaluation。" />
+        <SectionHeading index="09 · METHOD & BOUNDARY" title={<>这张地图如何<em>避免伪关系</em></>} note="引用图只能找候选关系，不能替代读文。最终边与单元格都回到论文的 method、ablation、limitations 和 evaluation。" />
         <div className="method-grid">
           <article><span>01</span><h3>先追引用，再读全文</h3><p>用 references / related work 找直接前驱，随后复核模型结构、训练目标、消融和失败案例；本版逐篇全文复核 29 篇。</p></article>
           <article><span>02</span><h3>关系边分三类</h3><p><b>直接继承</b>要求明确复用代码、权重或架构；<b>表征继承</b>复用 pointmap / SLAT 等对象；<b>问题延续</b>只说明解决同一缺口。</p></article>
